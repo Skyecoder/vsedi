@@ -76,7 +76,9 @@
     "overwrite_label": "Overwrite settings",
     "overwrite_desc": "Your current configuration will be erased and the installed sectors will use default settings",
     "backup_label": "Backup and clean old sectors",
-    "backup_desc": "A .zip copy of your EuroScope folder (VSEDI_Backup) will be made and old .prf, .sct, .ese and .rwy files from LECB, LECM, GCCC and LEXX will be removed before installing, It is possible that, if you uncheck this option, the sectors will appear as outdated in Euroscope."
+    "backup_desc": "A .zip copy of your EuroScope folder (VSEDI_Backup) will be made and old .prf, .sct, .ese and .rwy files from LECB, LECM, GCCC and LEXX will be removed before installing, It is possible that, if you uncheck this option, the sectors will appear as outdated in Euroscope.",
+    "beta_password_label": "BETA testing password",
+    "beta_password_placeholder": "Password you were given"
   },
   "extras": {
     "title": "Extras",
@@ -99,7 +101,11 @@
     "task_backup": "Backing up and cleaning old sectors",
     "task_extracting": "Installing in EuroScope",
     "extra_installer_open": "The installer has opened. Configure it and close it to continue.",
-    "extra_install_failed": "Could not install. You can do it manually later."
+    "extra_install_failed": "Could not install. You can do it manually later.",
+    "euroscope_running_title": "EuroScope is running",
+    "euroscope_running_message": "Close EuroScope before continuing. If it stays open, installing the sectors may fail or leave corrupted files.",
+    "euroscope_running_waiting": "Waiting for you to close EuroScope...",
+    "euroscope_running_retry": "Retry"
   },
   "final": {
     "title": "All done!",

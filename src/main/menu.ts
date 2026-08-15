@@ -236,6 +236,14 @@ export default class MenuBuilder {
             this.mainWindow.webContents.send('ultra:secret', menuItem.checked);
           },
         },
+        {
+          label: 'Modo BETA',
+          type: 'checkbox',
+          checked: false,
+          click: (menuItem) => {
+            this.mainWindow.webContents.send('beta:secret', menuItem.checked);
+          },
+        },
       ],
     };
 
@@ -407,6 +415,14 @@ export default class MenuBuilder {
                 'ultra:secret',
                 menuItem.checked,
               );
+            },
+          },
+          {
+            label: '🧪',
+            type: 'checkbox',
+            checked: false,
+            click: (menuItem) => {
+              this.mainWindow.webContents.send('beta:secret', menuItem.checked);
             },
           },
         ],

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useInstallation } from '../../hooks/useInstallation.hook';
 import type { StepProps } from '../../models/wizard.types';
@@ -49,9 +49,11 @@ export default function ProgressStepView({
   onNext,
 }: StepProps) {
   const { t } = useTranslation();
-  const { status, progress, error, install, extrasProgress } = useInstallation();
+  const { status, progress, error, install, extrasProgress } =
+    useInstallation();
   const done = status === 'done';
   const hasError = status === 'error';
+  const [euroscopeBlocked, setEuroscopeBlocked] = useState(false);
 
   const selectedExtras = EXTRAS.filter((e) => formData.extras.includes(e.id));
   const hasBackup = formData.backupAndCleanSectors;
@@ -61,7 +63,7 @@ export default function ProgressStepView({
     return [BASE_TASKS[0], BASE_TASKS[1], BACKUP_TASK, BASE_TASKS[2]];
   }, [hasBackup]);
 
-  useEffect(() => {
+  const startInstall = useCallback(() => {
     install({
       overwriteSettings: formData.overwriteSettings,
       backupAndCleanSectors: formData.backupAndCleanSectors,
@@ -73,7 +75,48 @@ export default function ProgressStepView({
       hoppieCode: formData.hoppieCode,
       fontSize: formData.fontSize,
       extras: formData.extras,
+      betaPassword: formData.betaPassword,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Guards against starting the install (or updating state) from a check
+  // that was still in flight when the user navigated away from this step.
+  const mountedRef = useRef(true);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
+
+  // Writing sector files while EuroScope has them open can fail or corrupt
+  // them, so check first and only start the install once it's closed.
+  const checkEuroscopeAndInstall = useCallback(async () => {
+    const running = await window.electron.euroscope.isRunning();
+    if (!mountedRef.current) return running;
+    setEuroscopeBlocked(running);
+    if (!running) startInstall();
+    return running;
+  }, [startInstall]);
+
+  useEffect(() => {
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    (async () => {
+      const running = await checkEuroscopeAndInstall();
+      if (!running) return;
+      // Keep re-checking in the background so the install starts on its own
+      // as soon as the user closes EuroScope, without needing a manual retry.
+      pollTimer = setInterval(async () => {
+        const stillRunning = await checkEuroscopeAndInstall();
+        if (!stillRunning && pollTimer) clearInterval(pollTimer);
+      }, 2000);
+    })();
+
+    return () => {
+      if (pollTimer) clearInterval(pollTimer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -102,20 +145,51 @@ export default function ProgressStepView({
             ? t('progress.title_ready')
             : hasError
               ? t('progress.title_error')
-              : t('progress.title_progress')}
+              : euroscopeBlocked
+                ? t('progress.euroscope_running_title')
+                : t('progress.title_progress')}
         </h2>
         <p className="mt-1 text-sm text-slate-400">
           {done
             ? t('progress.subtitle_ready')
             : hasError
               ? t('progress.subtitle_error')
-              : t('progress.subtitle_progress')}
+              : euroscopeBlocked
+                ? t('progress.euroscope_running_message')
+                : t('progress.subtitle_progress')}
         </p>
       </div>
 
       {hasError ? (
         <div className="px-4 py-3 text-sm text-red-400 border rounded-lg border-red-800/60 bg-red-950/30">
           {error}
+        </div>
+      ) : euroscopeBlocked ? (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl border bg-amber-950/30 border-amber-700/40">
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-900/60 border border-amber-600/50 flex-shrink-0 mt-0.5">
+              <CloseIcon className="w-3 h-3 text-amber-400" />
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-400">
+                {t('progress.euroscope_running_title')}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                {t('progress.euroscope_running_message')}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <div className="flex-shrink-0 w-3.5 h-3.5 border-2 rounded-full border-slate-600 border-t-zinc-300 animate-spin" />
+            {t('progress.euroscope_running_waiting')}
+          </div>
+          <button
+            type="button"
+            onClick={checkEuroscopeAndInstall}
+            className="self-start flex items-center gap-2 px-4 py-2.5 bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-800 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            {t('progress.euroscope_running_retry')}
+          </button>
         </div>
       ) : (
         <>
@@ -127,7 +201,9 @@ export default function ProgressStepView({
               />
             </div>
             <div className="flex justify-between mt-2">
-              <span className="text-xs text-slate-500">{t('progress.progress_label')}</span>
+              <span className="text-xs text-slate-500">
+                {t('progress.progress_label')}
+              </span>
               <span className="text-xs font-medium text-slate-400 tabular-nums">
                 {Math.round(totalProgress)}%
               </span>
@@ -242,7 +318,7 @@ export default function ProgressStepView({
         </>
       )}
 
-      {(done || hasError) && (
+      {(done || hasError || euroscopeBlocked) && (
         <div className="flex items-center justify-between pt-1">
           <button
             type="button"

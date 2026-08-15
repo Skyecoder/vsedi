@@ -77,7 +77,9 @@
     "overwrite_label": "Sobreescribir settings",
     "overwrite_desc": "Tu configuración actual se borrará y los sectores instalados tendrán los ajustes por defecto",
     "backup_label": "Backup y limpieza de sectores antiguos",
-    "backup_desc": "Se hará una copia .zip de tu carpeta de Euroscope (VSEDI_Backup) y se eliminarán los .prf, .sct, .ese y .rwy antiguos de LECB, LECM, GCCC y LEXX antes de instalar, es posible que si desmarcas esta opción los sectores aparezcan como desactualizados en Euroscope."
+    "backup_desc": "Se hará una copia .zip de tu carpeta de Euroscope (VSEDI_Backup) y se eliminarán los .prf, .sct, .ese y .rwy antiguos de LECB, LECM, GCCC y LEXX antes de instalar, es posible que si desmarcas esta opción los sectores aparezcan como desactualizados en Euroscope.",
+    "beta_password_label": "Contraseña BETA testing",
+    "beta_password_placeholder": "Contraseña que te han compartido"
   },
   "extras": {
     "title": "Extras",
@@ -100,7 +102,11 @@
     "task_backup": "Haciendo backup y limpiando sectores antiguos",
     "task_extracting": "Instalando en EuroScope",
     "extra_installer_open": "El instalador se ha abierto. Configúralo y ciérralo para continuar.",
-    "extra_install_failed": "No se pudo instalar. Puedes hacerlo manualmente después."
+    "extra_install_failed": "No se pudo instalar. Puedes hacerlo manualmente después.",
+    "euroscope_running_title": "EuroScope está abierto",
+    "euroscope_running_message": "Cierra EuroScope antes de continuar. Si sigue abierto, la instalación de los sectores puede fallar o dejar archivos corruptos.",
+    "euroscope_running_waiting": "Esperando a que cierres EuroScope...",
+    "euroscope_running_retry": "Reintentar"
   },
   "final": {
     "title": "¡Todo listo!",

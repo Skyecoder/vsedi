@@ -1,6 +1,7 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { app, IpcMainInvokeEvent, shell } from 'electron';
 import log from 'electron-log';
+import crypto from 'crypto';
 import fs from 'fs';
 import http from 'http';
 import https from 'https';
@@ -18,6 +19,27 @@ import type {
 const GITHUB_API =
   'https://api.github.com/repos/vatsimspain/Operaciones/releases/tags/vsedi';
 
+// Hidden BETA channel: same release as the public one, just an extra asset
+// ("beta_install.zip.enc") sitting alongside data_install.zip/data_update.zip,
+// encrypted with AES-256-GCM (see scripts/encrypt-beta-package.js). The
+// password typed into the hidden "Modo BETA" field is never stored
+// anywhere — it's only ever used to attempt a decrypt, which fails cleanly
+// if it's wrong.
+
+// Reverses the layout written by scripts/encrypt-beta-package.js:
+// [16-byte salt][12-byte IV][16-byte GCM auth tag][ciphertext].
+function decryptBetaPackage(encrypted: Buffer, password: string): Buffer {
+  const salt = encrypted.subarray(0, 16);
+  const iv = encrypted.subarray(16, 28);
+  const authTag = encrypted.subarray(28, 44);
+  const ciphertext = encrypted.subarray(44);
+  const key = crypto.scryptSync(password, salt, 32);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(authTag);
+  // Throws if the password is wrong (the GCM auth tag won't verify).
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+}
+
 // Dedicated log file for install/update operations, separate from the
 // auto-updater's main.log, so users can send just this one for support.
 const installLog = log.create({ logId: 'vsedi-install' });
@@ -25,7 +47,10 @@ installLog.transports.file.fileName = 'vsedi-log.log';
 // Reset on every app launch so the file only ever holds the current session.
 installLog.transports.file.getFile().clear();
 
-export async function openLogFile(): Promise<{ success: boolean; error?: string }> {
+export async function openLogFile(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
   try {
     const logPath = installLog.transports.file.getFile().path;
     const openError = await shell.openPath(logPath);
@@ -33,6 +58,23 @@ export async function openLogFile(): Promise<{ success: boolean; error?: string 
     return { success: true };
   } catch (err) {
     return { success: false, error: (err as Error).message };
+  }
+}
+
+// Checks whether EuroScope.exe is currently running. Used both to fail fast
+// from runInstall() and to let the renderer warn the user before it even
+// attempts to write sector files EuroScope may have open/locked.
+export function isEuroscopeRunning(): boolean {
+  try {
+    const out = execSync('tasklist /FI "IMAGENAME eq EuroScope.exe" /NH', {
+      encoding: 'utf8',
+      timeout: 3000,
+      windowsHide: true,
+    });
+    return /euroscope\.exe/i.test(out);
+  } catch {
+    // If tasklist itself fails for some reason, don't block the install on it.
+    return false;
   }
 }
 
@@ -83,7 +125,9 @@ export function get(url: string): Promise<Buffer> {
         if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
           res.resume();
           return reject(
-            new Error(`Petición fallida: servidor devolvió HTTP ${res.statusCode ?? 'desconocido'}`),
+            new Error(
+              `Petición fallida: servidor devolvió HTTP ${res.statusCode ?? 'desconocido'}`,
+            ),
           );
         }
         const chunks: Buffer[] = [];
@@ -95,7 +139,7 @@ export function get(url: string): Promise<Buffer> {
   });
 }
 
-function downloadWithProgress(
+export function downloadWithProgress(
   url: string,
   dest: string,
   onProgress: (pct: number) => void,
@@ -117,7 +161,9 @@ function downloadWithProgress(
         if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
           res.resume();
           return reject(
-            new Error(`Descarga fallida: servidor devolvió HTTP ${res.statusCode ?? 'desconocido'}`),
+            new Error(
+              `Descarga fallida: servidor devolvió HTTP ${res.statusCode ?? 'desconocido'}`,
+            ),
           );
         }
         const total = parseInt(res.headers['content-length'] ?? '0', 10);
@@ -180,7 +226,11 @@ function runPowerShell(cmd: string, elevated = false): Promise<void> {
       }
       const cleanup = () => {
         for (const f of [tmpScript, tmpLog]) {
-          try { fs.unlinkSync(f); } catch { /* ignore */ }
+          try {
+            fs.unlinkSync(f);
+          } catch {
+            /* ignore */
+          }
         }
       };
       const elevateCmd = `try { $proc = Start-Process powershell -ArgumentList @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', '${tmpScript.replace(/'/g, "''")}') -Verb RunAs -Wait -PassThru -ErrorAction Stop; exit $proc.ExitCode } catch { $_.Exception.Message | Out-File -LiteralPath '${tmpLog.replace(/'/g, "''")}' -Append; exit 1 }`;
@@ -193,7 +243,11 @@ function runPowerShell(cmd: string, elevated = false): Promise<void> {
       ]);
       ps.on('close', (code) => {
         let ffLog = '';
-        try { ffLog = fs.readFileSync(tmpLog, 'utf8').trim(); } catch { /* no log */ }
+        try {
+          ffLog = fs.readFileSync(tmpLog, 'utf8').trim();
+        } catch {
+          /* no log */
+        }
         cleanup();
         if (code === 0) {
           installLog.info('Elevated PowerShell completed successfully.');
@@ -203,7 +257,11 @@ function runPowerShell(cmd: string, elevated = false): Promise<void> {
             `Elevated PowerShell failed (code ${code}).`,
             ffLog || '(no details)',
           );
-          reject(new Error(ffLog || `PowerShell (elevated) exited with code ${code}`));
+          reject(
+            new Error(
+              ffLog || `PowerShell (elevated) exited with code ${code}`,
+            ),
+          );
         }
       });
       ps.on('error', (err) => {
@@ -219,8 +277,12 @@ function runPowerShell(cmd: string, elevated = false): Promise<void> {
         cmd,
       ]);
       let output = '';
-      ps.stdout.on('data', (d: Buffer) => { output += d.toString(); });
-      ps.stderr.on('data', (d: Buffer) => { output += d.toString(); });
+      ps.stdout.on('data', (d: Buffer) => {
+        output += d.toString();
+      });
+      ps.stderr.on('data', (d: Buffer) => {
+        output += d.toString();
+      });
       ps.on('close', (code) => {
         if (code === 0) {
           resolve();
@@ -229,7 +291,9 @@ function runPowerShell(cmd: string, elevated = false): Promise<void> {
             `PowerShell failed (code ${code}), will retry elevated if applicable.`,
             output.trim() || '(no output)',
           );
-          reject(new Error(output.trim() || `PowerShell exited with code ${code}`));
+          reject(
+            new Error(output.trim() || `PowerShell exited with code ${code}`),
+          );
         }
       });
       ps.on('error', reject);
@@ -247,9 +311,11 @@ async function writeFileSafe(
   try {
     fs.writeFileSync(filePath, content, encoding);
   } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
+    const { code } = err as NodeJS.ErrnoException;
     if (code !== 'EACCES' && code !== 'EPERM') throw err;
-    installLog.warn(`Write to "${filePath}" denied (${code}), retrying elevated...`);
+    installLog.warn(
+      `Write to "${filePath}" denied (${code}), retrying elevated...`,
+    );
     const tmpFile = path.join(os.tmpdir(), `vsedi-write-${Date.now()}.tmp`);
     fs.writeFileSync(tmpFile, content, encoding);
     const cmd = `Move-Item -LiteralPath '${tmpFile.replace(/'/g, "''")}' -Destination '${filePath.replace(/'/g, "''")}' -Force`;
@@ -262,9 +328,11 @@ async function mkdirSafe(dir: string): Promise<void> {
   try {
     fs.mkdirSync(dir, { recursive: true });
   } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
+    const { code } = err as NodeJS.ErrnoException;
     if (code !== 'EACCES' && code !== 'EPERM') throw err;
-    installLog.warn(`Create dir "${dir}" denied (${code}), retrying elevated...`);
+    installLog.warn(
+      `Create dir "${dir}" denied (${code}), retrying elevated...`,
+    );
     const cmd = `New-Item -ItemType Directory -Force -LiteralPath '${dir.replace(/'/g, "''")}'`;
     await runPowerShell(cmd, true);
   }
@@ -296,7 +364,9 @@ function runSilentInstaller(exePath: string, args: string[]): Promise<void> {
       if (code === 0 || code === null) {
         resolve();
       } else {
-        installLog.error(`Installer "${path.basename(exePath)}" exited with code ${code}.`);
+        installLog.error(
+          `Installer "${path.basename(exePath)}" exited with code ${code}.`,
+        );
         reject(new Error(`Installer exited with code ${code}`));
       }
     });
@@ -304,12 +374,18 @@ function runSilentInstaller(exePath: string, args: string[]): Promise<void> {
   });
 }
 
-async function extractZip(zipPath: string, destPath: string): Promise<void> {
+export async function extractZip(
+  zipPath: string,
+  destPath: string,
+): Promise<void> {
   // Scratch dir lives under the system Temp folder (not os.tmpdir(), which is
   // under the user profile) so its path never contains accented/non-ASCII
   // username characters — Windows PowerShell 5.1 (.NET Framework) can fail to
   // resolve such paths for cmdlets like Remove-Item on some machines.
-  const systemTempDir = path.join(process.env.SystemRoot || 'C:\\Windows', 'Temp');
+  const systemTempDir = path.join(
+    process.env.SystemRoot || 'C:\\Windows',
+    'Temp',
+  );
   const tmpDir = fs.mkdtempSync(path.join(systemTempDir, 'vsedi-'));
   const cmd = [
     `$tmp = '${tmpDir.replace(/'/g, "''")}'`,
@@ -333,9 +409,11 @@ async function deleteFileSafe(filePath: string): Promise<void> {
   try {
     fs.unlinkSync(filePath);
   } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
+    const { code } = err as NodeJS.ErrnoException;
     if (code !== 'EACCES' && code !== 'EPERM') throw err;
-    installLog.warn(`Delete "${filePath}" denied (${code}), retrying elevated...`);
+    installLog.warn(
+      `Delete "${filePath}" denied (${code}), retrying elevated...`,
+    );
     const cmd = `Remove-Item -LiteralPath '${filePath.replace(/'/g, "''")}' -Force`;
     await runPowerShell(cmd, true);
   }
@@ -486,7 +564,7 @@ async function patchPrfFiles(
     `LastSession\tpassword\t${password}`,
     `LastSession\tserver\tAUTOMATIC`,
     `LastSession\trating\t${rating}`,
-    `TeamSpeakVccs\tTs3NickName\t${name + ' - ' + cid}`,
+    `TeamSpeakVccs\tTs3NickName\t${`${name} - ${cid}`}`,
   ];
   const prefixes = injected.map((l) => l.split('\t').slice(0, 2).join('\t'));
 
@@ -613,9 +691,21 @@ export async function runInstall(
     rank,
     hoppieCode,
     fontSize,
+    betaPassword,
   } = payload;
   const send = (progress: InstallProgress) =>
     event.sender.send('install:progress', progress);
+
+  if (isEuroscopeRunning()) {
+    const msg =
+      'EuroScope está abierto. Ciérralo antes de instalar los sectores para evitar errores o archivos corruptos.';
+    installLog.warn(msg);
+    return { success: false, error: msg };
+  }
+
+  // Hidden BETA channel: same pipeline end to end, only the source package
+  // differs (a separate, password-encrypted release asset).
+  const isBeta = !!betaPassword;
 
   const tmpPath = path.join(
     os.tmpdir(),
@@ -623,31 +713,60 @@ export async function runInstall(
   );
 
   installLog.info(
-    `Starting ${overwriteSettings ? 'installation' : 'update'} in "${destFolder}" (backupAndCleanSectors=${backupAndCleanSectors}).`,
+    `Starting ${overwriteSettings ? 'installation' : 'update'} in "${destFolder}" (backupAndCleanSectors=${backupAndCleanSectors}${isBeta ? ', channel=BETA' : ''}).`,
   );
 
   try {
     // 1. Fetch release metadata
     send({ stage: 'fetching', percent: 0 });
-    installLog.info('Fetching latest release from GitHub...');
+    installLog.info(`Fetching ${isBeta ? 'BETA ' : ''}release from GitHub...`);
     const raw = await get(GITHUB_API);
     const release = JSON.parse(raw.toString()) as {
       assets: { name: string; browser_download_url: string }[];
     };
 
-    const assetName = overwriteSettings
-      ? 'data_install.zip'
-      : 'data_update.zip';
+    const assetName = isBeta
+      ? 'beta_install.zip.enc'
+      : overwriteSettings
+        ? 'data_install.zip'
+        : 'data_update.zip';
     const asset = release.assets.find((a) => a.name === assetName);
     if (!asset)
       throw new Error(`No se encontró el asset "${assetName}" en el release.`);
 
-    // 2. Download
+    // 2. Download (BETA assets land in a .enc temp file first, then get
+    // decrypted into the same tmpPath the normal channel downloads straight
+    // into — everything from here on is identical for both channels).
     send({ stage: 'downloading', percent: 0 });
     installLog.info(`Downloading "${assetName}"...`);
-    await downloadWithProgress(asset.browser_download_url, tmpPath, (pct) => {
-      send({ stage: 'downloading', percent: pct });
-    });
+    const downloadDest = isBeta ? `${tmpPath}.enc` : tmpPath;
+    await downloadWithProgress(
+      asset.browser_download_url,
+      downloadDest,
+      (pct) => {
+        send({ stage: 'downloading', percent: pct });
+      },
+    );
+
+    if (isBeta) {
+      installLog.info('Decrypting BETA package...');
+      let decrypted: Buffer;
+      try {
+        decrypted = decryptBetaPackage(
+          fs.readFileSync(downloadDest),
+          betaPassword as string,
+        );
+      } catch {
+        throw new Error('Contraseña BETA incorrecta.');
+      } finally {
+        try {
+          fs.unlinkSync(downloadDest);
+        } catch {
+          /* ignore */
+        }
+      }
+      fs.writeFileSync(tmpPath, decrypted);
+    }
 
     // 3. Backup + clean stale sector files (opt-in, runs before extraction so
     // the backup captures the pre-update state)
@@ -709,7 +828,9 @@ export async function runInstall(
         if (!extraConfig) continue;
 
         send({ stage: 'extras', percent: 0, extraId, extraStatus: 'running' });
-        installLog.info(`Starting extra "${extraConfig.name}" (${extraConfig.source})...`);
+        installLog.info(
+          `Starting extra "${extraConfig.name}" (${extraConfig.source})...`,
+        );
         try {
           if (extraConfig.source === 'font') {
             await installFont(extraConfig.assetPath);
@@ -746,7 +867,9 @@ export async function runInstall(
                   throw new Error(
                     `No se encontró versión estable para ${extraConfig.name}`,
                   );
-                installLog.info(`Resolved "${extraConfig.name}" latest stable release: ${stable.tag_name}.`);
+                installLog.info(
+                  `Resolved "${extraConfig.name}" latest stable release: ${stable.tag_name}.`,
+                );
                 releaseExtra = stable;
               } else {
                 const rawExtra = await get(
@@ -780,7 +903,10 @@ export async function runInstall(
           installLog.info(`Extra "${extraId}" installed successfully.`);
           send({ stage: 'extras', percent: 100, extraId, extraStatus: 'done' });
         } catch (extraErr) {
-          installLog.error(`Extra "${extraId}" failed.`, (extraErr as Error).message);
+          installLog.error(
+            `Extra "${extraId}" failed.`,
+            (extraErr as Error).message,
+          );
           send({
             stage: 'extras',
             percent: 0,
@@ -799,6 +925,10 @@ export async function runInstall(
     installLog.error('Installation failed.', (err as Error).message);
     return { success: false, error: (err as Error).message };
   } finally {
-    try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
+    try {
+      fs.unlinkSync(tmpPath);
+    } catch {
+      /* ignore */
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FONT_SIZES } from '../../../const/fontSize';
 import { RANKS } from '../../../const/ranks';
@@ -12,9 +13,41 @@ export default function ConfigStepView({
   setFormData,
   onNext,
   onBack,
+  betaMode,
 }: StepProps) {
   const { t } = useTranslation();
   const { pickSectorsFolder } = useConfigController(setFormData);
+
+  // Backup/clean only makes sense when the selected folder already has
+  // sectors in it. On a first install there's nothing to back up or clean,
+  // so hide the option and make sure it doesn't run.
+  const [hasExistingSectors, setHasExistingSectors] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const folder = formData.sectorsFolder;
+    if (!folder) {
+      setHasExistingSectors(false);
+      return undefined;
+    }
+    window.electron.airac
+      .scan(folder)
+      .then((scanned) => {
+        if (cancelled) return;
+        const found = Object.values(scanned).some((e) => e.length > 0);
+        setHasExistingSectors(found);
+        if (!found && formData.backupAndCleanSectors) {
+          setFormData({ backupAndCleanSectors: false });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setHasExistingSectors(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.sectorsFolder]);
 
   const inputClass =
     'w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-slate-100 text-sm placeholder-slate-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/20 transition-colors';
@@ -28,9 +61,7 @@ export default function ConfigStepView({
         <h2 className="text-xl font-semibold font-akira text-slate-100">
           {t('config.title')}
         </h2>
-        <p className="mt-1 text-sm text-slate-400">
-          {t('config.subtitle')}
-        </p>
+        <p className="mt-1 text-sm text-slate-400">{t('config.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -165,9 +196,7 @@ export default function ConfigStepView({
           </div>
           <div className="flex items-center gap-2">
             <InfoIcon className="size-6 text-zinc-500" />
-            <p className="text-xs text-zinc-500">
-              {t('config.sectors_desc')}
-            </p>
+            <p className="text-xs text-zinc-500">{t('config.sectors_desc')}</p>
           </div>
         </div>
       </div>
@@ -187,36 +216,52 @@ export default function ConfigStepView({
           </label>
         </div>
         <div>
-          <span className="text-sm text-zinc-300">{t('config.overwrite_label')}</span>
-          <p className="text-xs text-zinc-500">
-            {t('config.overwrite_desc')}
-          </p>
+          <span className="text-sm text-zinc-300">
+            {t('config.overwrite_label')}
+          </span>
+          <p className="text-xs text-zinc-500">{t('config.overwrite_desc')}</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="checkbox-wrapper-26">
-          <input
-            type="checkbox"
-            id="backupAndCleanSectors"
-            checked={formData.backupAndCleanSectors}
-            onChange={(e) =>
-              setFormData({ backupAndCleanSectors: e.target.checked })
-            }
-          />
-          <label htmlFor="backupAndCleanSectors">
-            <div className="tick_mark" />
-          </label>
+      {hasExistingSectors && (
+        <div className="flex items-center gap-3">
+          <div className="checkbox-wrapper-26">
+            <input
+              type="checkbox"
+              id="backupAndCleanSectors"
+              checked={formData.backupAndCleanSectors}
+              onChange={(e) =>
+                setFormData({ backupAndCleanSectors: e.target.checked })
+              }
+            />
+            <label htmlFor="backupAndCleanSectors">
+              <div className="tick_mark" />
+            </label>
+          </div>
+          <div>
+            <span className="text-sm text-zinc-300">
+              {t('config.backup_label')}
+            </span>
+            <p className="text-xs text-zinc-500">{t('config.backup_desc')}</p>
+          </div>
         </div>
+      )}
+
+      {betaMode && (
         <div>
-          <span className="text-sm text-zinc-300">
-            {t('config.backup_label')}
-          </span>
-          <p className="text-xs text-zinc-500">
-            {t('config.backup_desc')}
-          </p>
+          <label className={labelClass} htmlFor="betaPassword">
+            {t('config.beta_password_label')}
+          </label>
+          <input
+            id="betaPassword"
+            className={inputClass}
+            type="password"
+            placeholder={t('config.beta_password_placeholder')}
+            value={formData.betaPassword}
+            onChange={(e) => setFormData({ betaPassword: e.target.value })}
+          />
         </div>
-      </div>
+      )}
 
       <div className="flex items-center justify-between pt-1">
         <button

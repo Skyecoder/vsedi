@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { useEffect, useState } from 'react';
 import type { StepProps, WizardStep } from '../models/wizard.types';
 import StepIndicator from '../components/StepIndicator.component';
 import UpdateBanner from '../components/UpdateBanner.component';
@@ -6,6 +7,7 @@ import OpenSourceBanner from '../components/OpenSourceBanner.component';
 import LanguageToggle from '../components/LanguageToggle.component';
 import WhiteLogo from '../../../assets/logo/WhiteLogo.png';
 import WhiteLogoAlt from '../../../assets/logo/WhiteLogoAlt.png';
+import WhiteLogoBeta from '../../../assets/logo/WhiteLogoBeta.png';
 import Discord from '../../../assets/media/discord.png';
 import Instagram from '../../../assets/media/ig.png';
 import YouTube from '../../../assets/media/yt.png';
@@ -19,7 +21,6 @@ import Bg4 from '../../../assets/bg/4.png';
 import Bg5 from '../../../assets/bg/5.png';
 import Bg6 from '../../../assets/bg/6.png';
 import Bg7 from '../../../assets/bg/7.png';
-import { useEffect, useState } from 'react';
 
 const backgrounds = [Bg1, Bg2, Bg3, Bg4, Bg5, Bg6, Bg7];
 
@@ -32,12 +33,14 @@ type Props = {
 export default function WizardView({ steps, currentStep, stepProps }: Props) {
   const { t } = useTranslation();
   const [ultraSecret, setUltraSecret] = useState(false);
+  const [betaMode, setBetaMode] = useState(false);
   const StepComponent = steps[currentStep].component;
 
   const version = require('../../../package.json').version || 'Local';
 
   useEffect(() => {
     window.electron.ultraSecret.onChange((enabled) => setUltraSecret(enabled));
+    window.electron.betaMode.onChange((enabled) => setBetaMode(enabled));
   }, []);
 
   return (
@@ -60,7 +63,9 @@ export default function WizardView({ steps, currentStep, stepProps }: Props) {
       <div className="relative flex flex-col flex-1 overflow-hidden">
         <div className="flex items-center justify-between flex-shrink-0 px-8 py-5 box-shadow-lg shadow-black/30">
           <img
-            src={ultraSecret ? WhiteLogoAlt : WhiteLogo}
+            src={
+              ultraSecret ? WhiteLogoAlt : betaMode ? WhiteLogoBeta : WhiteLogo
+            }
             alt="VSEDI Logo"
             className="w-32"
           />
@@ -72,7 +77,11 @@ export default function WizardView({ steps, currentStep, stepProps }: Props) {
           className="flex-1 px-8 overflow-y-auto py-7 animate-fade-in"
           key={currentStep}
         >
-          <StepComponent {...stepProps} ultraSecret={ultraSecret} />
+          <StepComponent
+            {...stepProps}
+            ultraSecret={ultraSecret}
+            betaMode={betaMode}
+          />
         </div>
       </div>
 

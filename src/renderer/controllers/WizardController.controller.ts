@@ -15,6 +15,7 @@ const DEFAULT_FORM: WizardFormData = {
   overwriteSettings: false,
   backupAndCleanSectors: true,
   extras: MANDATORY_EXTRAS,
+  betaPassword: '',
 };
 
 export function useWizardController(steps: WizardStep[]) {
@@ -22,20 +23,25 @@ export function useWizardController(steps: WizardStep[]) {
   const [formData, setFormDataState] = useState<WizardFormData>(DEFAULT_FORM);
 
   useEffect(() => {
-    window.electron.config.load().then((saved) => {
-      const s = saved as Partial<WizardFormData>;
-      setFormDataState((prev) => ({
-        ...prev,
-        ...(s.cid != null && { cid: s.cid }),
-        ...(s.password != null && { password: s.password }),
-        ...(s.name != null && { name: s.name }),
-        ...(s.hoppieCode != null && { hoppieCode: s.hoppieCode }),
-        ...(s.rank != null && { rank: s.rank }),
-        ...(s.fontSize != null && { fontSize: s.fontSize }),
-        ...(s.sectorsFolder != null && { sectorsFolder: s.sectorsFolder }),
-        ...(s.overwriteSettings != null && { overwriteSettings: s.overwriteSettings }),
-      }));
-    }).catch(() => {});
+    window.electron.config
+      .load()
+      .then((saved) => {
+        const s = saved as Partial<WizardFormData>;
+        setFormDataState((prev) => ({
+          ...prev,
+          ...(s.cid != null && { cid: s.cid }),
+          ...(s.password != null && { password: s.password }),
+          ...(s.name != null && { name: s.name }),
+          ...(s.hoppieCode != null && { hoppieCode: s.hoppieCode }),
+          ...(s.rank != null && { rank: s.rank }),
+          ...(s.fontSize != null && { fontSize: s.fontSize }),
+          ...(s.sectorsFolder != null && { sectorsFolder: s.sectorsFolder }),
+          ...(s.overwriteSettings != null && {
+            overwriteSettings: s.overwriteSettings,
+          }),
+        }));
+      })
+      .catch(() => {});
   }, []);
 
   const setFormData = (partial: Partial<WizardFormData>) =>
@@ -46,7 +52,9 @@ export function useWizardController(steps: WizardStep[]) {
       const next = Math.min(s + 1, steps.length - 1);
       // Save form data when leaving the config step (index 3)
       if (s === 3) {
-        window.electron.config.save(formData as unknown as Record<string, unknown>).catch(() => {});
+        window.electron.config
+          .save(formData as unknown as Record<string, unknown>)
+          .catch(() => {});
       }
       return next;
     });

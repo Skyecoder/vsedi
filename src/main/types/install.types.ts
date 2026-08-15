@@ -9,6 +9,8 @@ export interface InstallPayload {
   hoppieCode: string;
   fontSize: 'small' | 'medium' | 'large';
   extras: string[];
+  /** BETA channel password, entered via the hidden "Modo BETA" field. Empty/absent = normal public channel. */
+  betaPassword?: string;
 }
 
 export interface SavedConfig {
@@ -29,7 +31,13 @@ export interface InstallResult {
   error?: string;
 }
 
-export type InstallStage = 'fetching' | 'downloading' | 'backup' | 'extracting' | 'extras' | 'done';
+export type InstallStage =
+  | 'fetching'
+  | 'downloading'
+  | 'backup'
+  | 'extracting'
+  | 'extras'
+  | 'done';
 
 export type ExtraInstallStatus = 'running' | 'done' | 'error';
 
