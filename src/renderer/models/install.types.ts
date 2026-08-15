@@ -1,4 +1,10 @@
-export type InstallStage = 'fetching' | 'downloading' | 'backup' | 'extracting' | 'extras' | 'done';
+export type InstallStage =
+  | 'fetching'
+  | 'downloading'
+  | 'backup'
+  | 'extracting'
+  | 'extras'
+  | 'done';
 
 export type ExtraInstallStatus = 'running' | 'done' | 'error';
 
@@ -26,4 +32,5 @@ export interface InstallPayload {
   hoppieCode: string;
   fontSize: 'small' | 'medium' | 'large';
   extras: string[];
+  betaPassword?: string;
 }

@@ -16,7 +16,16 @@ import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
-import { runInstall, loadConfig, saveConfig, readConfig, get, scanInstalledAiracs, installEuroscopeMsi } from './installHandler';
+import {
+  runInstall,
+  loadConfig,
+  saveConfig,
+  readConfig,
+  get,
+  scanInstalledAiracs,
+  installEuroscopeMsi,
+  isEuroscopeRunning,
+} from './installHandler';
 
 class AppUpdater {
   constructor() {
@@ -92,8 +101,13 @@ function findEuroscopeInfo(): {
         windowsHide: true,
       });
       const match = out.match(/DisplayVersion\s+REG_SZ\s+(.+)/);
-      if (match) { version = match[1].trim(); break; }
-    } catch { /* try next */ }
+      if (match) {
+        version = match[1].trim();
+        break;
+      }
+    } catch {
+      /* try next */
+    }
   }
 
   return { exePath, version };
@@ -109,6 +123,8 @@ ipcMain.handle('euroscope:getInfo', () => {
 });
 
 ipcMain.handle('euroscope:installMsi', installEuroscopeMsi);
+
+ipcMain.handle('euroscope:isRunning', () => isEuroscopeRunning());
 
 ipcMain.handle('euroscope:browse', async () => {
   if (!mainWindow) return null;

@@ -11,6 +11,7 @@ export interface WizardFormData {
   overwriteSettings: boolean;
   backupAndCleanSectors: boolean;
   extras: string[];
+  betaPassword: string;
 }
 
 export interface StepProps {
@@ -21,6 +22,7 @@ export interface StepProps {
   isFirst: boolean;
   isLast: boolean;
   ultraSecret?: boolean;
+  betaMode?: boolean;
 }
 
 export interface WizardStep {

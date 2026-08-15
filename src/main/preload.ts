@@ -3,7 +3,12 @@
 import { app, contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import type { InstallPayload } from '../renderer/models/install.types';
 
-export type Channels = 'ipc-example' | 'install:progress' | 'euroscope:install:progress' | 'ultra:secret';
+export type Channels =
+  | 'ipc-example'
+  | 'install:progress'
+  | 'euroscope:install:progress'
+  | 'ultra:secret'
+  | 'beta:secret';
 
 const electronHandler = {
   ipcRenderer: {
@@ -58,9 +63,7 @@ const electronHandler = {
       exePath: string | null;
       version: string | null;
     }> => ipcRenderer.invoke('euroscope:getInfo'),
-    installMsi: (
-      url: string,
-    ): Promise<{ success: boolean; error?: string }> =>
+    installMsi: (url: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('euroscope:installMsi', url),
     onInstallProgress: (
       func: (data: { stage: string; percent: number }) => void,
@@ -74,19 +77,33 @@ const electronHandler = {
         ipcRenderer.removeListener('euroscope:install:progress', handler);
     },
     launch: () => ipcRenderer.send('euroscope:launch'),
-    browse: (): Promise<string | null> => ipcRenderer.invoke('euroscope:browse'),
+    browse: (): Promise<string | null> =>
+      ipcRenderer.invoke('euroscope:browse'),
+    isRunning: (): Promise<boolean> =>
+      ipcRenderer.invoke('euroscope:isRunning'),
   },
   http: {
-    getText: (url: string): Promise<string> => ipcRenderer.invoke('http:getText', url),
+    getText: (url: string): Promise<string> =>
+      ipcRenderer.invoke('http:getText', url),
   },
   airac: {
-    scan: (folder: string): Promise<Record<string, { date: string; cycle: string }[]>> =>
+    scan: (
+      folder: string,
+    ): Promise<Record<string, { date: string; cycle: string }[]>> =>
       ipcRenderer.invoke('airac:scan', folder),
   },
   getVersion: () => app.getVersion(),
   ultraSecret: {
     onChange: (func: (enabled: boolean) => void) =>
-      ipcRenderer.on('ultra:secret', (_event, enabled) => func(enabled as boolean)),
+      ipcRenderer.on('ultra:secret', (_event, enabled) =>
+        func(enabled as boolean),
+      ),
+  },
+  betaMode: {
+    onChange: (func: (enabled: boolean) => void) =>
+      ipcRenderer.on('beta:secret', (_event, enabled) =>
+        func(enabled as boolean),
+      ),
   },
 };
 
