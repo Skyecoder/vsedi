@@ -14,6 +14,7 @@ import YouTube from '../../../assets/media/yt.png';
 import X from '../../../assets/media/x.png';
 import TikTok from '../../../assets/media/tik-tok.png';
 import GitHub from '../../../assets/media/gh.png';
+import OpenCollective from '../../../assets/media/oc.png';
 import Bg1 from '../../../assets/bg/1.png';
 import Bg2 from '../../../assets/bg/2.png';
 import Bg3 from '../../../assets/bg/3.png';
@@ -150,6 +151,17 @@ export default function WizardView({ steps, currentStep, stepProps }: Props) {
             <img
               src={TikTok}
               alt="TikTok Logo"
+              className="w-6 hover:cursor-pointer hover:scale-105"
+            />
+          </a>
+          <a
+            href="https://opencollective.com/vatsimspain"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src={OpenCollective}
+              alt="Open Collective Logo"
               className="w-6 hover:cursor-pointer hover:scale-105"
             />
           </a>
