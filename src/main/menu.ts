@@ -436,7 +436,6 @@ export default class MenuBuilder {
               this.mainWindow.webContents.send('beta:secret', menuItem.checked);
             },
           },
-          { type: 'separator' },
           {
             label: '👨🏼‍🦲',
             type: 'checkbox',

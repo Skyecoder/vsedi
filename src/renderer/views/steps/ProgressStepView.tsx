@@ -3,10 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { useInstallation } from '../../hooks/useInstallation.hook';
 import type { StepProps } from '../../models/wizard.types';
 import { EXTRAS } from '../../../const/extras.config';
+import EuroscopeLogo from '../../../../assets/logo/euroscope.png';
 import { TickIcon } from '../../icons/TickIcon.icon';
 import { CheckMarkIcon } from '../../icons/CheckMark.icon';
 import { CloseIcon } from '../../icons/Close.icon';
 import { ArrowRightIcon } from '../../icons/ArrowRight.icon';
+import { RefreshIcon } from '../../icons/Refresh.icon';
 
 type TaskStage = 'fetching' | 'downloading' | 'backup' | 'extracting';
 type Task = { stage: TaskStage };
@@ -165,29 +167,30 @@ export default function ProgressStepView({
           {error}
         </div>
       ) : euroscopeBlocked ? (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl border bg-amber-950/30 border-amber-700/40">
-            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-900/60 border border-amber-600/50 flex-shrink-0 mt-0.5">
-              <CloseIcon className="w-3 h-3 text-amber-400" />
+        <div className="flex flex-col items-center gap-5 px-6 py-9 text-center rounded-2xl bg-zinc-800/40">
+          <div className="relative flex items-center justify-center w-20 h-20">
+            <span className="absolute inset-0 rounded-full bg-zinc-500/10 blur-xl animate-pulse" />
+            <img
+              src={EuroscopeLogo}
+              alt="EuroScope"
+              className="relative w-14 h-14 opacity-90 drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
+            />
+            <span className="absolute -bottom-1 -right-1 flex items-center justify-center w-6 h-6 rounded-full bg-zinc-700 shadow-md shadow-black/50">
+              <CloseIcon className="w-3 h-3 text-zinc-300" />
             </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-amber-400">
-                {t('progress.euroscope_running_title')}
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                {t('progress.euroscope_running_message')}
-              </p>
-            </div>
           </div>
+
           <div className="flex items-center gap-2 text-xs text-slate-500">
-            <div className="flex-shrink-0 w-3.5 h-3.5 border-2 rounded-full border-slate-600 border-t-zinc-300 animate-spin" />
+            <div className="flex-shrink-0 w-3.5 h-3.5 border-2 rounded-full border-slate-700 border-t-zinc-300 animate-spin" />
             {t('progress.euroscope_running_waiting')}
           </div>
+
           <button
             type="button"
             onClick={checkEuroscopeAndInstall}
-            className="self-start flex items-center gap-2 px-4 py-2.5 bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-800 text-white text-sm font-medium rounded-lg transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-800 text-white text-sm font-medium rounded-lg transition-colors"
           >
+            <RefreshIcon className="w-4 h-4" />
             {t('progress.euroscope_running_retry')}
           </button>
         </div>
