@@ -139,6 +139,21 @@ export function get(url: string): Promise<Buffer> {
   });
 }
 
+// Used by the menu to only show the hidden "Modo BETA" toggle when there's
+// actually a beta build published — no point offering a password prompt for
+// a channel that has nothing to install.
+export async function isBetaChannelAvailable(): Promise<boolean> {
+  try {
+    const raw = await get(GITHUB_API);
+    const release = JSON.parse(raw.toString()) as {
+      assets: { name: string }[];
+    };
+    return release.assets.some((a) => a.name === 'beta_install.zip.enc');
+  } catch {
+    return false;
+  }
+}
+
 export function downloadWithProgress(
   url: string,
   dest: string,

@@ -5,7 +5,11 @@ import {
   BrowserWindow,
   MenuItemConstructorOptions,
 } from 'electron';
-import { openLogFile } from './installHandler';
+import { isBetaChannelAvailable, openLogFile } from './installHandler';
+
+// Menu id shared by both platform templates so buildMenu() can look the
+// item up once the GitHub check resolves and flip its visibility.
+const BETA_MODE_ITEM_ID = 'beta-mode-toggle';
 
 interface DarwinMenuItemConstructorOptions extends MenuItemConstructorOptions {
   selector?: string;
@@ -34,6 +38,13 @@ export default class MenuBuilder {
 
     const menu = Menu.buildFromTemplate(template);
     Menu.setApplicationMenu(menu);
+
+    // Hidden by default (see the item's `visible: false`); only reveal it
+    // once we've confirmed a BETA build is actually published.
+    isBetaChannelAvailable().then((available) => {
+      const betaItem = menu.getMenuItemById(BETA_MODE_ITEM_ID);
+      if (betaItem) betaItem.visible = available;
+    });
 
     return menu;
   }
@@ -219,17 +230,11 @@ export default class MenuBuilder {
       ],
     };
 
-    const subMenuView =
-      process.env.NODE_ENV === 'development' ||
-      process.env.DEBUG_PROD === 'true'
-        ? subMenuViewDev
-        : subMenuViewProd;
-
-    const subMenuUltraSecret: MenuItemConstructorOptions = {
-      label: '🤫',
+    const subMenuExtras: MenuItemConstructorOptions = {
+      label: 'Extras',
       submenu: [
         {
-          label: 'Modo ULTRA Secreto',
+          label: '👨🏼‍🦲',
           type: 'checkbox',
           checked: false,
           click: (menuItem) => {
@@ -237,9 +242,11 @@ export default class MenuBuilder {
           },
         },
         {
+          id: BETA_MODE_ITEM_ID,
           label: 'Modo BETA',
           type: 'checkbox',
           checked: false,
+          visible: false,
           click: (menuItem) => {
             this.mainWindow.webContents.send('beta:secret', menuItem.checked);
           },
@@ -247,13 +254,19 @@ export default class MenuBuilder {
       ],
     };
 
+    const subMenuView =
+      process.env.NODE_ENV === 'development' ||
+      process.env.DEBUG_PROD === 'true'
+        ? subMenuViewDev
+        : subMenuViewProd;
+
     return [
       subMenuAbout,
       subMenuEdit,
       subMenuView,
       subMenuWindow,
       subMenuHelp,
-      subMenuUltraSecret,
+      subMenuExtras,
     ];
   }
 
@@ -334,7 +347,6 @@ export default class MenuBuilder {
               );
             },
           },
-          { type: 'separator' },
           {
             label: 'Repositorio en GitHub',
             click() {
@@ -354,7 +366,6 @@ export default class MenuBuilder {
               shell.openExternal('https://vatsimspain.es');
             },
           },
-          // { type: 'separator' },
           // {
           //   label: 'Discord',
           //   click() {
@@ -387,22 +398,42 @@ export default class MenuBuilder {
           // },
           { type: 'separator' },
           {
-            label: 'Contacto: webmaster@vatsimspain.es',
-            click() {
-              shell.openExternal('mailto:webmaster@vatsimspain.es');
-            },
-          },
-          {
-            label: 'Contacto: operaciones@vatsimspain.es',
-            click() {
-              shell.openExternal('mailto:operaciones@vatsimspain.es');
-            },
+            label: 'Contacto',
+            submenu: [
+              {
+                label: 'Webmaster: webmaster@vatsimspain.es',
+                click() {
+                  shell.openExternal('mailto:webmaster@vatsimspain.es');
+                },
+              },
+              {
+                label: 'Operaciones: operaciones@vatsimspain.es',
+                click() {
+                  shell.openExternal('mailto:operaciones@vatsimspain.es');
+                },
+              },
+            ],
           },
           { type: 'separator' },
           {
             label: 'Abrir archivo de log',
             click() {
               openLogFile();
+            },
+          },
+        ],
+      },
+      {
+        label: '&Extras',
+        submenu: [
+          {
+            id: BETA_MODE_ITEM_ID,
+            label: 'Modo BETA',
+            type: 'checkbox',
+            checked: false,
+            visible: false,
+            click: (menuItem) => {
+              this.mainWindow.webContents.send('beta:secret', menuItem.checked);
             },
           },
           { type: 'separator' },
@@ -415,14 +446,6 @@ export default class MenuBuilder {
                 'ultra:secret',
                 menuItem.checked,
               );
-            },
-          },
-          {
-            label: '🧪',
-            type: 'checkbox',
-            checked: false,
-            click: (menuItem) => {
-              this.mainWindow.webContents.send('beta:secret', menuItem.checked);
             },
           },
         ],
