@@ -217,6 +217,8 @@ export function downloadWithProgress(
   });
 }
 
+// Resolves a path bundled inside the app's assets/ dir (used by the handful
+// of "font-local" extras that aren't yet published on the "vsedi" release).
 function getAssetsPath(): string {
   return app.isPackaged
     ? path.join(process.resourcesPath, 'assets')
@@ -353,21 +355,18 @@ async function mkdirSafe(dir: string): Promise<void> {
   }
 }
 
-// Opens the bundled .ttf with its default handler (Windows' own font preview
-// dialog), so the user installs it via the "Instalar" button. This hands the
-// actual copy+registry work to Windows itself instead of a hand-rolled
-// PowerShell Copy-Item, which was unreliable: Windows' font cache service
-// briefly locks a font file right after it's registered, so a silent
-// reinstall/update could silently no-op.
+// Opens a downloaded .ttf with its default handler (Windows' own font
+// preview dialog), so the user installs it via the "Instalar" button. This
+// hands the actual copy+registry work to Windows itself instead of a
+// hand-rolled PowerShell Copy-Item, which was unreliable: Windows' font
+// cache service briefly locks a font file right after it's registered, so a
+// silent reinstall/update could silently no-op.
 // Uses Start-Process -Wait (instead of shell.openPath) so this blocks until
 // the user closes that window, keeping multiple font extras sequential
 // instead of popping every preview window open at once.
-async function installFont(assetPath: string): Promise<void> {
-  const src = path.join(getAssetsPath(), assetPath);
-  installLog.info(
-    `Opening font installer for "${path.basename(assetPath)}"...`,
-  );
-  const cmd = `Start-Process -FilePath '${src.replace(/'/g, "''")}' -Wait`;
+async function installFont(fontPath: string): Promise<void> {
+  installLog.info(`Opening font installer for "${path.basename(fontPath)}"...`);
+  const cmd = `Start-Process -FilePath '${fontPath.replace(/'/g, "''")}' -Wait`;
   await runPowerShell(cmd);
 }
 
@@ -784,11 +783,20 @@ export async function runInstall(
     }
 
     // 3. Backup + clean stale sector files (opt-in, runs before extraction so
-    // the backup captures the pre-update state)
+    // the backup captures the pre-update state). Best-effort: a failure here
+    // (e.g. locked file, out of disk space) shouldn't abort the whole
+    // install, since the actual sector update can still proceed fine without it.
     if (backupAndCleanSectors) {
       send({ stage: 'backup', percent: 0 });
       installLog.info('Running backup and cleaning stale sector files...');
-      await backupAndCleanSectorsFolder(destFolder);
+      try {
+        await backupAndCleanSectorsFolder(destFolder);
+      } catch (backupErr) {
+        installLog.warn(
+          'Backup/cleanup of sectors folder failed, continuing install anyway.',
+          (backupErr as Error).message,
+        );
+      }
       send({ stage: 'backup', percent: 100 });
     }
 
@@ -848,7 +856,39 @@ export async function runInstall(
         );
         try {
           if (extraConfig.source === 'font') {
-            await installFont(extraConfig.assetPath);
+            // Fonts ship as assets on the same "vsedi" release the sector
+            // data comes from, so reuse the release metadata already
+            // fetched in step 1 instead of hitting the GitHub API again.
+            const fontAsset = release.assets.find(
+              (a) =>
+                a.name.toLowerCase() === extraConfig.assetName.toLowerCase(),
+            );
+            if (!fontAsset)
+              throw new Error(
+                `No se encontró el asset "${extraConfig.assetName}" en el release.`,
+              );
+            const fontTmp = path.join(
+              os.tmpdir(),
+              `vsedi-extra-${extraConfig.id}${path.extname(extraConfig.assetName)}`,
+            );
+            await downloadWithProgress(
+              fontAsset.browser_download_url,
+              fontTmp,
+              () => {},
+            );
+            try {
+              await installFont(fontTmp);
+            } finally {
+              try {
+                fs.unlinkSync(fontTmp);
+              } catch {
+                /* ignore */
+              }
+            }
+          } else if (extraConfig.source === 'font-local') {
+            await installFont(
+              path.join(getAssetsPath(), extraConfig.assetPath),
+            );
           } else if (extraConfig.source === 'local') {
             await runSilentInstaller(
               extraConfig.localPath,
