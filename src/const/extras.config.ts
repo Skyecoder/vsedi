@@ -28,6 +28,12 @@ export type ExtraConfig =
     })
   | (ExtraBase & {
       source: 'font';
+      /** Asset filename on the "vsedi" GitHub release (same one sector data comes from) */
+      assetName: string;
+    })
+  | (ExtraBase & {
+      source: 'font-local';
+      /** Path to a .ttf bundled under assets/ */
       assetPath: string;
     });
 
@@ -38,7 +44,7 @@ export const EXTRAS: ExtraConfig[] = [
     description:
       'Contiene los iconos y fuentes necesarias para que Euroscope se vea correctamente.',
     source: 'font',
-    assetPath: 'extras/euroscope.ttf',
+    assetName: 'euroscope.ttf',
     mandatory: true,
   },
   {
@@ -46,7 +52,7 @@ export const EXTRAS: ExtraConfig[] = [
     name: 'Fuente VSPV',
     description:
       'Esta fuente será usada por el plugin SACTA para asemejarse lo máximo posible a los radares reales.',
-    source: 'font',
+    source: 'font-local',
     assetPath: 'extras/vspv.ttf',
   },
   {
