@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { FONT_SIZES } from '../../../const/fontSize';
 import { RANKS } from '../../../const/ranks';
 import { useConfigController } from '../../controllers/ConfigController.controller';
+import ConfirmModal from '../../components/ConfirmModal.component';
 import { ArrowRightIcon } from '../../icons/ArrowRight.icon';
 import { FolderIcon } from '../../icons/Folder.icon';
 import type { StepProps } from '../../models/wizard.types';
@@ -22,6 +23,11 @@ export default function ConfigStepView({
   // sectors in it. On a first install there's nothing to back up or clean,
   // so hide the option and make sure it doesn't run.
   const [hasExistingSectors, setHasExistingSectors] = useState(false);
+
+  // Full install (data_install.zip) is the default. Checking "update only"
+  // switches to data_update.zip, which skips some files, so that choice is
+  // gated behind a confirmation modal.
+  const [showUpdateWarning, setShowUpdateWarning] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -205,23 +211,43 @@ export default function ConfigStepView({
         <div className="checkbox-wrapper-26">
           <input
             type="checkbox"
-            id="overwriteSettings"
-            checked={formData.overwriteSettings}
-            onChange={(e) =>
-              setFormData({ overwriteSettings: e.target.checked })
-            }
+            id="updateOnly"
+            checked={!formData.overwriteSettings}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setShowUpdateWarning(true);
+              } else {
+                setFormData({ overwriteSettings: true });
+              }
+            }}
           />
-          <label htmlFor="overwriteSettings">
+          <label htmlFor="updateOnly">
             <div className="tick_mark" />
           </label>
         </div>
         <div>
           <span className="text-sm text-zinc-300">
-            {t('config.overwrite_label')}
+            {t('config.update_only_label')}
           </span>
-          <p className="text-xs text-zinc-500">{t('config.overwrite_desc')}</p>
+          <p className="text-xs text-zinc-500">
+            {t('config.update_only_desc')}
+          </p>
         </div>
       </div>
+
+      {showUpdateWarning && (
+        <ConfirmModal
+          title={t('config.update_warning_title')}
+          message={t('config.update_warning_message')}
+          confirmLabel={t('config.update_warning_confirm')}
+          cancelLabel={t('config.update_warning_cancel')}
+          onCancel={() => setShowUpdateWarning(false)}
+          onConfirm={() => {
+            setFormData({ overwriteSettings: false });
+            setShowUpdateWarning(false);
+          }}
+        />
+      )}
 
       {hasExistingSectors && (
         <div className="flex items-center gap-3">
