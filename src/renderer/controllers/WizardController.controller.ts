@@ -12,7 +12,9 @@ const DEFAULT_FORM: WizardFormData = {
   rank: '',
   fontSize: 'medium',
   sectorsFolder: '',
-  overwriteSettings: false,
+  // Full install (data_install.zip) by default. Checking the "update only"
+  // box in ConfigStepView flips this to false to use data_update.zip instead.
+  overwriteSettings: true,
   backupAndCleanSectors: true,
   extras: MANDATORY_EXTRAS,
   betaPassword: '',
