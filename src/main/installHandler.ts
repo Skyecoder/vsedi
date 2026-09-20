@@ -717,6 +717,22 @@ export async function runInstall(
     return { success: false, error: msg };
   }
 
+  let destIsDirectory = false;
+  try {
+    destIsDirectory =
+      !!destFolder &&
+      path.isAbsolute(destFolder) &&
+      fs.statSync(destFolder).isDirectory();
+  } catch {
+    destIsDirectory = false;
+  }
+  if (!destIsDirectory) {
+    const msg =
+      'La carpeta de sectores no es válida. Selecciona una carpeta existente antes de instalar.';
+    installLog.warn(msg);
+    return { success: false, error: msg };
+  }
+
   // Hidden BETA channel: same pipeline end to end, only the source package
   // differs (a separate, password-encrypted release asset).
   const isBeta = !!betaPassword;
