@@ -301,8 +301,14 @@ export default function ConfigStepView({
         <button
           type="button"
           onClick={onNext}
-          disabled={!formData.sectorsFolder}
-          className="flex items-center gap-2 px-5 py-2.5 bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-800 text-white text-sm font-medium rounded-lg transition-colors"
+          disabled={
+            !formData.sectorsFolder ||
+            !formData.cid.trim() ||
+            !formData.password ||
+            !formData.name.trim() ||
+            !formData.rank
+          }
+          className="flex items-center gap-2 px-5 py-2.5 bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-800 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-40"
         >
           {t('nav.continue')}
           <ArrowRightIcon className="w-4 h-4" />

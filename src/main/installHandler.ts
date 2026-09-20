@@ -571,15 +571,15 @@ async function patchPrfFiles(
 ): Promise<void> {
   const prfFiles = findPrfFiles(folder);
   installLog.info(`Found ${prfFiles.length} .prf file(s) to patch.`);
-  const rating = RATING_MAP[rank] ?? 1;
-  const injected = [
-    `LastSession\trealname\t${name}`,
-    `LastSession\tcertificate\t${cid}`,
-    `LastSession\tpassword\t${password}`,
-    `LastSession\tserver\tAUTOMATIC`,
-    `LastSession\trating\t${rating}`,
-    `TeamSpeakVccs\tTs3NickName\t${`${name} - ${cid}`}`,
-  ];
+  const rating = RATING_MAP[rank];
+  const injected: string[] = [];
+  if (name) injected.push(`LastSession\trealname\t${name}`);
+  if (cid) injected.push(`LastSession\tcertificate\t${cid}`);
+  if (password) injected.push(`LastSession\tpassword\t${password}`);
+  injected.push('LastSession\tserver\tAUTOMATIC');
+  if (rating !== undefined) injected.push(`LastSession\trating\t${rating}`);
+  if (name || cid)
+    injected.push(`TeamSpeakVccs\tTs3NickName\t${`${name} - ${cid}`}`);
   const prefixes = injected.map((l) => l.split('\t').slice(0, 2).join('\t'));
 
   for (const prfPath of prfFiles) {
