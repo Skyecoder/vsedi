@@ -98,6 +98,15 @@ function writeConfig(data: Partial<SavedConfig>): void {
   );
 }
 
+function getDefaultEuroscopeExePath(): string | null {
+  const bases = [process.env['ProgramFiles(x86)'], process.env.ProgramFiles];
+  const found = bases
+    .filter((base): base is string => !!base)
+    .map((base) => path.join(base, 'EuroScope', 'EuroScope.exe'))
+    .find((candidate) => fs.existsSync(candidate));
+  return found ?? null;
+}
+
 export function loadConfig(_event: IpcMainInvokeEvent): SavedConfig {
   return readConfig();
 }
@@ -637,6 +646,8 @@ export async function installEuroscopeMsi(
       proc.on('error', reject);
     });
     installLog.info('EuroScope installation completed.');
+    const detected = getDefaultEuroscopeExePath();
+    if (detected) writeConfig({ euroscopePath: detected });
     return { success: true };
   } catch (err) {
     installLog.error('EuroScope installation failed.', (err as Error).message);
