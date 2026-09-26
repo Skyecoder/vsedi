@@ -598,6 +598,7 @@ async function createHoppieFiles(
   folder: string,
   hoppieCode: string,
 ): Promise<void> {
+  if (!hoppieCode) return;
   for (const sector of HOPPIE_SECTORS) {
     const dir = path.join(folder, sector, 'Plugins', 'TopSky');
     await mkdirSafe(dir);
