@@ -225,7 +225,8 @@
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "requestedExecutionLevel": "requireAdministrator"
     },
     "linux": {
       "target": [

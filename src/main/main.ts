@@ -66,6 +66,19 @@ ipcMain.handle('config:load', loadConfig);
 ipcMain.handle('config:save', saveConfig);
 ipcMain.handle('airac:scan', scanInstalledAiracs);
 
+function isRunningAsAdmin(): boolean {
+  if (process.platform !== 'win32') return true;
+  try {
+    // `net session` only succeeds from an elevated process
+    execSync('net session', { stdio: 'ignore', windowsHide: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+ipcMain.handle('app:isAdmin', () => isRunningAsAdmin());
+
 ipcMain.on('app:close', () => {
   mainWindow?.close();
 });

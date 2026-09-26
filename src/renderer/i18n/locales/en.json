@@ -124,6 +124,10 @@
     "error": "Update error: {{message}}",
     "restart": "Restart now"
   },
+  "admin": {
+    "warning": "VSEDI is not running as administrator. Some features (installing sectors, EuroScope or plugins) might not work properly. Close the app and reopen it with \"Run as administrator\".",
+    "dismiss": "Dismiss warning"
+  },
   "opensource": {
     "text_pre": "VSEDI is",
     "link_label": "open source",
