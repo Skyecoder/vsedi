@@ -10,7 +10,7 @@
  */
 import path from 'path';
 import fs from 'fs';
-import { exec, execSync } from 'child_process';
+import { execSync, spawn } from 'child_process';
 import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
@@ -139,7 +139,11 @@ ipcMain.handle('euroscope:browse', async () => {
 
 ipcMain.on('euroscope:launch', () => {
   const exePath = findEuroscopeInfo().exePath ?? EUROSCOPE_FALLBACK;
-  exec(`"${exePath}"`);
+  if (path.basename(exePath).toLowerCase() !== 'euroscope.exe') return;
+  if (!fs.existsSync(exePath)) return;
+  const child = spawn(exePath, [], { detached: true, stdio: 'ignore' });
+  child.on('error', () => {});
+  child.unref();
 });
 
 ipcMain.handle('http:getText', async (_event, url: string) => {
