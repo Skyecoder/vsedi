@@ -578,6 +578,12 @@ async function patchPrfFiles(
   rank: string,
   hoppieCode: string,
 ): Promise<void> {
+  // Without both credentials there's nothing meaningful to inject, so leave
+  // the .prf files exactly as they shipped instead of writing empty values.
+  if (!cid.trim() || !password.trim()) {
+    installLog.info('CID or password empty, skipping .prf patching.');
+    return;
+  }
   const prfFiles = findPrfFiles(folder);
   installLog.info(`Found ${prfFiles.length} .prf file(s) to patch.`);
   const rating = RATING_MAP[rank] ?? 1;
