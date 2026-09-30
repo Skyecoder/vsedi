@@ -64,7 +64,7 @@ export const EXTRAS: ExtraConfig[] = [
     source: 'github',
     githubRepo: 'pierr3/TrackAudio',
     releaseTag: 'latest',
-    assetPattern: /TrackAudio.*Setup.*\.exe$|TrackAudio.*\.exe$/i,
+    assetPattern: /trackaudio.*setup\.exe$/i,
     installArgs: [],
   },
   {
